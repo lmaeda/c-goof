@@ -36,8 +36,8 @@ jobs:
           echo "SNYK_INTEGRATION_ID=$(jq -r '.snykScmIntegration' .github/config.json)" >> $GITHUB_ENV
           echo "SNYK_ORG_ID=$(jq -r '.snykOrg' .github/config.json)" >> $GITHUB_ENV
 
-          echo "Deploying ${{ env.APP_NAME }} to the ${{ env.DEPLOY_TARGET }} environment."
-          echo "The target AWS region is: ${{ env.AWS_REGION }}"
+          echo "Deploying ${APP_NAME} to the ${PROJ_ENV} environment."
+          echo "The target AWS region is: ${AWS_REGION}"
 
           BRANCH_NAME="${{ github.ref_name }}"
           echo "Current branch/ref: ${BRANCH_NAME}"
@@ -80,8 +80,8 @@ jobs:
           echo "proj_lifecycle=$LIFECYCLE" >> $GITHUB_OUTPUT
           echo "proj_reponame=$REPO_NAME" >> $GITHUB_OUTPUT
           echo "proj_repoorg=$REPO_ORG" >> $GITHUB_OUTPUT
-          echo "snyk_scm_integration_id=${{ env.SNYK_INTEGRATION_ID }}" >> $GITHUB_OUTPUT
-          echo "snyk_org_id=${{ env.SNYK_ORG_ID }}" >> $GITHUB_OUTPUT
+          echo "snyk_scm_integration_id=${SNYK_INTEGRATION_ID}" >> $GITHUB_OUTPUT
+          echo "snyk_org_id=${SNYK_ORG_ID}" >> $GITHUB_OUTPUT
         shell: bash
 
       - name: Verify Project Environment Variables
