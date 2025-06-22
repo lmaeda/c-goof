@@ -30,6 +30,7 @@ jobs:
       - name: Set Project Environment Variables Based on Branch
         id: set_project_vars
         run: |
+          echo "APP_NAME=$(jq -r '.appName' .github/config.json)"
           echo "AWS_REGION=$(jq -r '.deployment.region' .github/config.json)" >> $GITHUB_ENV
           echo "APP_NAME=$(jq -r '.appName' .github/config.json)" >> $GITHUB_ENV
           echo "PROJ_ENV=$(jq -r '.projEnv' .github/config.json)" >> $GITHUB_ENV
