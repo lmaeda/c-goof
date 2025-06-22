@@ -20,17 +20,15 @@ jobs:
       proj_env: ${{ steps.env_vars.outputs.proj_env }}
       proj_lifecycle: ${{ steps.env_vars.outputs.proj_lifecycle }}
     steps:
-      - name: Parse JSON and set environment variables
-        id: parse_json
+      - name: Set Project Environment Variables Based on Branch
+        id: set_project_vars
         run: |
           echo "AWS_REGION=$(jq -r '.deployment.region' .github/config.json)" >> $GITHUB_ENV
           echo "APP_NAME=$(jq -r '.appName' .github/config.json)" >> $GITHUB_ENV
           echo "PROJ_ENV=$(jq -r '.projEnv' .github/config.json)" >> $GITHUB_ENV
           echo "SNYK_INTEGRATION_ID=$(jq -r '.snykScmIntegration' .github/config.json)" >> $GITHUB_ENV
           echo "SNYK_ORG_ID=$(jq -r '.snykOrg' .github/config.json)" >> $GITHUB_ENV
-      - name: Set Project Environment Variables Based on Branch
-        id: set_project_vars
-        run: |
+
           echo "Deploying ${{ env.APP_NAME }} to the ${{ env.DEPLOY_TARGET }} environment."
           echo "The target AWS region is: ${{ env.AWS_REGION }}"
 
@@ -68,15 +66,13 @@ jobs:
           echo "proj_lifecycle=$LIFECYCLE" >> $GITHUB_ENV
           echo "proj_reponame=$REPO_NAME" >> $GITHUB_ENV
           echo "proj_repoorg=$REPO_ORG" >> $GITHUB_ENV
-          echo "snyk_scm_integration_id=${{ env.SNYK_INTEGRATION_ID }}" >> $GITHUB_ENV
-          echo "snyk_org_id=${{ env.SNYK_ORG_ID }}" >> $GITHUB_ENV
 
           # Also set as step outputs for job outputs
           echo "proj_criticality=$CRITICALITY" >> $GITHUB_OUTPUT
           echo "proj_env=$ENVIRONMENT" >> $GITHUB_OUTPUT
           echo "proj_lifecycle=$LIFECYCLE" >> $GITHUB_OUTPUT
           echo "proj_reponame=$REPO_NAME" >> $GITHUB_OUTPUT
-          echo "proj_repoorg=$REPO_ORG" >> $GITHUB_ENV
+          echo "proj_repoorg=$REPO_ORG" >> $GITHUB_OUTPUT
           echo "snyk_scm_integration_id=${{ env.SNYK_INTEGRATION_ID }}" >> $GITHUB_OUTPUT
           echo "snyk_org_id=${{ env.SNYK_ORG_ID }}" >> $GITHUB_OUTPUT
         shell: bash
@@ -117,7 +113,7 @@ jobs:
   scan_vulnerability:
     needs: [env_vars,test_appcode]
     runs-on: ubuntu-latest
-    container: docker pull snyk/snyk:node
+    container: snyk/snyk:node
     environment: snyk_demo
     env:
       SNYK_TOKEN: "${{ secrets.SNYK_TOKEN }}"
