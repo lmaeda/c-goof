@@ -19,6 +19,10 @@ jobs:
       proj_criticality: ${{ steps.env_vars.outputs.proj_criticality }}
       proj_env: ${{ steps.env_vars.outputs.proj_env }}
       proj_lifecycle: ${{ steps.env_vars.outputs.proj_lifecycle }}
+      proj_reponame: ${{ steps.env_vars.outputs.proj_reponame }}
+      proj_repoorg: ${{ steps.env_vars.outputs.proj_repoorg }}
+      snyk_scm_integration_id: ${{ steps.env_vars.outputs.snyk_scm_integration_id }}
+      snyk_org_id: ${{ steps.env_vars.outputs.snyk_org_id }}
     steps:
       - uses: actions/checkout@v4
         with:
