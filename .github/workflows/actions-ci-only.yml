@@ -28,7 +28,7 @@ jobs:
         with:
           ref: ${{ github.ref_name }}
       - name: Set Project Environment Variables Based on Branch
-        id: set_project_vars
+        id: env_vars
         run: |
           AWS_REGION=$(jq -r '.deployment.region' .github/config.json)
           APP_NAME=$(jq -r '.appName' .github/config.json)
@@ -158,7 +158,7 @@ jobs:
         }" "https://api.snyk.io/v1/org/${{ needs.env_vars.outputs.snyk_org_id }}/integrations/${{ needs.env_vars.outputs.snyk_scm_integration_id }}/import"
   refresh_container:
     needs: [env_vars,scan_vulnerability]
-    environment: snyk_aws_demo
+    environment: snyk_demo
     runs-on: ubuntu-latest
     env:
       DOCKER_BUILDKIT: "1"
