@@ -1,0 +1,9 @@
+{
+  "appName": "c-goof",
+  "projEnv": "distributed,external",
+  "deployment": {
+    "region": "us-east-1"
+  },
+  "snykScmIntegration": "d4835e7e-b4f4-481b-a59e-c95db2892587",
+  "snykOrg":"9aed8d8e-5740-42e4-b88c-126b1f6d6b93"
+}

@@ -1,0 +1,172 @@
+name: Snyk Demo using GithubActions - no Terraform
+
+on:
+  push:
+    branches: [ * ]
+  pull_request:
+    branches: [ * ]
+  workflow_dispatch:
+    inputs:
+      name:
+        description: 'name of the Snyk team'
+        required: false
+        default: 'Snyk TSM APJ'
+
+jobs:
+  env_vars: # This job sets variables based on branch
+    runs-on: ubuntu-latest
+    outputs:
+      proj_criticality: ${{ steps.env_vars.outputs.proj_criticality }}
+      proj_env: ${{ steps.env_vars.outputs.proj_env }}
+      proj_lifecycle: ${{ steps.env_vars.outputs.proj_lifecycle }}
+    steps:
+      - name: Parse JSON and set environment variables
+        id: parse_json
+        run: |
+          echo "AWS_REGION=$(jq -r '.deployment.region' .github/config.json)" >> $GITHUB_ENV
+          echo "APP_NAME=$(jq -r '.appName' .github/config.json)" >> $GITHUB_ENV
+          echo "PROJ_ENV=$(jq -r '.projEnv' .github/config.json)" >> $GITHUB_ENV
+          echo "SNYK_INTEGRATION_ID=$(jq -r '.snykScmIntegration' .github/config.json)" >> $GITHUB_ENV
+          echo "SNYK_ORG_ID=$(jq -r '.snykOrg' .github/config.json)" >> $GITHUB_ENV
+      - name: Set Project Environment Variables Based on Branch
+        id: set_project_vars
+        run: |
+          echo "Deploying ${{ env.APP_NAME }} to the ${{ env.DEPLOY_TARGET }} environment."
+          echo "The target AWS region is: ${{ env.AWS_REGION }}"
+
+          BRANCH_NAME="${{ github.ref_name }}"
+          echo "Current branch/ref: ${BRANCH_NAME}"
+          REPO_NAME=$(echo "${{ github.repository }}" | cut -d'/' -f2)
+          echo "The repository name is ${REPO_NAME}"
+          REPO_ORG=$(echo "${{ github.repository }}" | cut -d'/' -f1)
+          echo "The repository name is ${REPO_ORG}"
+
+          # Allowed values for proj criticality:
+          #   low, medium, high, critical
+          # Allowed values for proj environments:
+          #   frontend, backend, internal, external, mobile, saas, onprem, hosted, distributed
+          # Allowed values for proj lifecycles:
+          #   sandbox, development, production
+
+          if [[ "${BRANCH_NAME}" == "production" || "${BRANCH_NAME}" == "main" ]]; then
+            echo "Branch is '$BRANCH_NAME'. Setting production values."
+            CRITICALITY="high"
+            LIFECYCLE="production"
+          elif [[ "${BRANCH_NAME}" == "development" ]]; then
+            echo "Branch is '$BRANCH_NAME'. Setting development values."
+            CRITICALITY="medium"
+            LIFECYCLE="development"
+          else
+            echo "Branch is '$BRANCH_NAME'. Setting default values."
+            CRITICALITY="low"
+            LIFECYCLE="sandbox"
+          fi
+          ENVIRONMENT="distributed,external"
+
+          echo "proj_criticality=$CRITICALITY" >> $GITHUB_ENV
+          echo "proj_env=$ENVIRONMENT" >> $GITHUB_ENV
+          echo "proj_lifecycle=$LIFECYCLE" >> $GITHUB_ENV
+          echo "proj_reponame=$REPO_NAME" >> $GITHUB_ENV
+          echo "proj_repoorg=$REPO_ORG" >> $GITHUB_ENV
+          echo "snyk_scm_integration_id=${{ env.SNYK_INTEGRATION_ID }}" >> $GITHUB_ENV
+          echo "snyk_org_id=${{ env.SNYK_ORG_ID }}" >> $GITHUB_ENV
+
+          # Also set as step outputs for job outputs
+          echo "proj_criticality=$CRITICALITY" >> $GITHUB_OUTPUT
+          echo "proj_env=$ENVIRONMENT" >> $GITHUB_OUTPUT
+          echo "proj_lifecycle=$LIFECYCLE" >> $GITHUB_OUTPUT
+          echo "proj_reponame=$REPO_NAME" >> $GITHUB_OUTPUT
+          echo "proj_repoorg=$REPO_ORG" >> $GITHUB_ENV
+          echo "snyk_scm_integration_id=${{ env.SNYK_INTEGRATION_ID }}" >> $GITHUB_OUTPUT
+          echo "snyk_org_id=${{ env.SNYK_ORG_ID }}" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Verify Project Environment Variables
+        run: |
+          echo "Project Criticality: $proj_criticality"
+          echo "Project Environment: $proj_env"
+          echo "Project Lifecycle: $proj_lifecycle"
+          echo "proj_reponame: $proj_reponame"
+          echo "proj_repoorg: $proj_repoorg"
+          echo "snyk_scm_integration_id: $snyk_scm_integration_id"
+          echo "snyk_org_id: $snyk_org_id"
+          echo "These variables are available for subsequent steps in this job."
+
+  use_outputs_in_another_job: # Job to demonstrate using outputs from env_vars
+    runs-on: ubuntu-latest
+    needs: [env_vars] # Now only depends on env_vars
+    if: always() # Ensure this job runs to show output
+    steps:
+      - name: Display variables from 'env_vars' job outputs
+        run: |
+          echo "--- Outputs from env_vars job ---"
+          echo "Project Criticality from 'env_vars' job: ${{ needs.env_vars.outputs.proj_criticality }}"
+          echo "Project Environment from 'env_vars' job: ${{ needs.env_vars.outputs.proj_env }}"
+          echo "Project Lifecycle from 'env_vars' job: ${{ needs.env_vars.outputs.proj_lifecycle }}"
+          echo "proj_reponame from 'env_vars' job: ${{ needs.env_vars.outputs.proj_reponame }}"
+          echo "proj_repoorg from 'env_vars' job: ${{ needs.env_vars.outputs.proj_repoorg }}"
+          echo "snyk_scm_integration_id from 'env_vars' job: ${{ needs.env_vars.outputs.snyk_scm_integration_id }}"
+          echo "snyk_org_id from 'env_vars' job: ${{ needs.env_vars.outputs.snyk_org_id }}"
+
+  test_appcode:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: build appcode
+      run: "echo 'This is a placeholder for the appcode build step.' # Replace with actual build command" 
+  scan_vulnerability:
+    needs: [env_vars,test_appcode]
+    runs-on: ubuntu-latest
+    container: docker pull snyk/snyk:node
+    environment: snyk_demo
+    env:
+      SNYK_TOKEN: "${{ secrets.SNYK_TOKEN }}"
+    steps:
+    - uses: actions/checkout@v1
+    - name: build appcode
+      run: mvn install 
+    - name: scan vulnerability with Snyk
+      run: |
+        # Snyk OpenSource
+        snyk test --org=${{ needs.env_vars.outputs.snyk_org_id }} --unmanaged --all-projects --fail-on=all --severity-threshold=low || true # *1 replace with snyk-filter or snyk-delta
+        # Snyk IaC
+        snyk iac test --org=${{ needs.env_vars.outputs.snyk_org_id }} --severity-threshold=low || true # *1
+        # Snyk Code
+        snyk code test --org=${{ needs.env_vars.outputs.snyk_org_id }} --severity-threshold=low || true # *1
+    - name: monitor/report with Snyk App UI
+      run: |
+        # Snyk IaC
+        snyk iac test --org=${{ needs.env_vars.outputs.snyk_org_id }} --report --remote-repo-url=${{ github.server_url }}/${{ github.repository }} --target-name=${{ github.repository }} --target-reference="${{ github.ref_name }}" --project-tags=team=frontend,app=${{ needs.env_vars.outputs.proj_reponame }}-iac --project-business-criticality=${{ needs.env_vars.outputs.proj_criticality }} --project-environment=${{ needs.env_vars.outputs.proj_env }} --project-lifecycle=${{ needs.env_vars.outputs.proj_lifecycle }} || true # *1
+        # Snyk OpenSource
+        snyk monitor --org=${{ needs.env_vars.outputs.snyk_org_id }} --unmanaged --all-projects --remote-repo-url=${{ github.server_url }}/${{ github.repository }} --target-reference="${{ github.ref_name }}" --project-tags=team=frontend,app=${{ needs.env_vars.outputs.proj_reponame }}-os --project-business-criticality=${{ needs.env_vars.outputs.proj_criticality }} --project-environment=${{ needs.env_vars.outputs.proj_env }} --project-lifecycle=${{ needs.env_vars.outputs.proj_lifecycle }} # *1
+        # Snyk import from Git integration through API
+        curl --request POST --header "Content-Type: application/json; charset=utf-8" --header "Authorization: token ${SNYK_TOKEN}" --data-binary "{
+          \"target\": {
+            \"owner\": \"${{ needs.env_vars.outputs.proj_repoorg }}\",
+            \"name\": \"${{ needs.env_vars.outputs.proj_reponame }}\",    
+            \"branch\": \"${{ github.sha }}\"
+          }
+        }" "https://api.snyk.io/v1/org/${{ needs.env_vars.outputs.snyk_org_id }}/integrations/${{ needs.env_vars.outputs.snyk_scm_integration_id }}/import"
+  refresh_container:
+    needs: [env_vars,scan_vulnerability]
+    environment: snyk_aws_demo
+    runs-on: ubuntu-latest
+    env:
+      DOCKER_BUILDKIT: "1"
+      DOCKER_LOGIN: "${{ secrets.DOCKER_LOGIN }}"
+      SNYK_TOKEN: "${{ secrets.SNYK_TOKEN }}"
+    steps:
+    - uses: actions/checkout@v1
+    - name: build container image
+      run: docker image build . --file Dockerfile --tag ${{env.DOCKER_LOGIN}}/${{ needs.env_vars.outputs.proj_reponame }}:latest
+    - name: scan vulnerability
+      run: docker run --env SNYK_TOKEN -v /var/run/docker.sock:/var/run/docker.sock snyk/snyk:docker snyk container test --print-deps --org=${{ needs.env_vars.outputs.snyk_org_id }} --app-vulns --nested-jars-depth=15 ${{env.DOCKER_LOGIN}}/${{ needs.env_vars.outputs.proj_reponame }}:latest|| true # *1
+    - name: monitor container image for vulnerability
+      run: docker run --env SNYK_TOKEN -v /var/run/docker.sock:/var/run/docker.sock snyk/snyk:docker snyk container monitor --org=${{ needs.env_vars.outputs.snyk_org_id }} --app-vulns --nested-jars-depth=15 ${{env.DOCKER_LOGIN}}/${{ needs.env_vars.outputs.proj_reponame }}:latest --project-name=${{ needs.env_vars.outputs.proj_reponame }} --target-reference="${{ github.ref_name }}" --project-tags=team=frontend,app=${{ needs.env_vars.outputs.proj_reponame }}-container --project-business-criticality=${{ needs.env_vars.outputs.proj_criticality }} --project-environment=${{ needs.env_vars.outputs.proj_env }} --project-lifecycle=${{ needs.env_vars.outputs.proj_lifecycle }}  || true # *1
+    - name: Login to DockerHub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKER_LOGIN }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+    - name: push container image
+      run: docker push ${{env.DOCKER_LOGIN}}/my-snyk-demo-mvn-goof:latest
