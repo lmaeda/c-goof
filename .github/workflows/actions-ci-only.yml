@@ -153,31 +153,6 @@ jobs:
           \"target\": {
             \"owner\": \"${{ needs.env_vars.outputs.proj_repoorg }}\",
             \"name\": \"${{ needs.env_vars.outputs.proj_reponame }}\",    
-            \"branch\": \"${{ github.sha }}\"
+            \"branch\": \"${{ github.ref_name }}\"
           }
         }" "https://api.snyk.io/v1/org/${{ needs.env_vars.outputs.snyk_org_id }}/integrations/${{ needs.env_vars.outputs.snyk_scm_integration_id }}/import"
-  refresh_container:
-    needs: [env_vars,scan_vulnerability]
-    environment: snyk_demo
-    runs-on: ubuntu-latest
-    env:
-      DOCKER_BUILDKIT: "1"
-      DOCKER_LOGIN: "${{ secrets.DOCKER_LOGIN }}"
-      SNYK_TOKEN: "${{ secrets.SNYK_TOKEN }}"
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        ref: ${{ github.ref_name }}
-    - name: build container image
-      run: docker image build . --file Dockerfile --tag ${{env.DOCKER_LOGIN}}/${{ needs.env_vars.outputs.proj_reponame }}:latest
-    - name: scan vulnerability
-      run: docker run --env SNYK_TOKEN -v /var/run/docker.sock:/var/run/docker.sock snyk/snyk:docker snyk container test --print-deps --org=${{ needs.env_vars.outputs.snyk_org_id }} --app-vulns --nested-jars-depth=15 ${{env.DOCKER_LOGIN}}/${{ needs.env_vars.outputs.proj_reponame }}:latest|| true # *1
-    - name: monitor container image for vulnerability
-      run: docker run --env SNYK_TOKEN -v /var/run/docker.sock:/var/run/docker.sock snyk/snyk:docker snyk container monitor --org=${{ needs.env_vars.outputs.snyk_org_id }} --app-vulns --nested-jars-depth=15 ${{env.DOCKER_LOGIN}}/${{ needs.env_vars.outputs.proj_reponame }}:latest --project-name=${{ needs.env_vars.outputs.proj_reponame }} --target-reference="${{ github.ref_name }}" --project-tags=team=frontend,app=${{ needs.env_vars.outputs.proj_reponame }}-container --project-business-criticality=${{ needs.env_vars.outputs.proj_criticality }} --project-environment=${{ needs.env_vars.outputs.proj_env }} --project-lifecycle=${{ needs.env_vars.outputs.proj_lifecycle }}  || true # *1
-    - name: Login to DockerHub
-      uses: docker/login-action@v2
-      with:
-        username: ${{ secrets.DOCKER_LOGIN }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
-    - name: push container image
-      run: docker push ${{env.DOCKER_LOGIN}}/my-snyk-demo-mvn-goof:latest
