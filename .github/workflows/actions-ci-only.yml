@@ -20,6 +20,9 @@ jobs:
       proj_env: ${{ steps.env_vars.outputs.proj_env }}
       proj_lifecycle: ${{ steps.env_vars.outputs.proj_lifecycle }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
       - name: Set Project Environment Variables Based on Branch
         id: set_project_vars
         run: |
@@ -107,7 +110,9 @@ jobs:
   test_appcode:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.ref_name }}
     - name: build appcode
       run: "echo 'This is a placeholder for the appcode build step.' # Replace with actual build command" 
   scan_vulnerability:
@@ -118,9 +123,11 @@ jobs:
     env:
       SNYK_TOKEN: "${{ secrets.SNYK_TOKEN }}"
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.ref_name }}
     - name: build appcode
-      run: mvn install 
+      run: "echo 'This is a placeholder for the appcode build step.' # Replace with actual build command" 
     - name: scan vulnerability with Snyk
       run: |
         # Snyk OpenSource
@@ -152,7 +159,9 @@ jobs:
       DOCKER_LOGIN: "${{ secrets.DOCKER_LOGIN }}"
       SNYK_TOKEN: "${{ secrets.SNYK_TOKEN }}"
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.ref_name }}
     - name: build container image
       run: docker image build . --file Dockerfile --tag ${{env.DOCKER_LOGIN}}/${{ needs.env_vars.outputs.proj_reponame }}:latest
     - name: scan vulnerability
