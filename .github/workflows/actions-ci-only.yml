@@ -30,12 +30,11 @@ jobs:
       - name: Set Project Environment Variables Based on Branch
         id: set_project_vars
         run: |
-          echo "APP_NAME=$(jq -r '.appName' .github/config.json)"
-          echo "AWS_REGION=$(jq -r '.deployment.region' .github/config.json)" >> $GITHUB_ENV
-          echo "APP_NAME=$(jq -r '.appName' .github/config.json)" >> $GITHUB_ENV
-          echo "PROJ_ENV=$(jq -r '.projEnv' .github/config.json)" >> $GITHUB_ENV
-          echo "SNYK_INTEGRATION_ID=$(jq -r '.snykScmIntegration' .github/config.json)" >> $GITHUB_ENV
-          echo "SNYK_ORG_ID=$(jq -r '.snykOrg' .github/config.json)" >> $GITHUB_ENV
+          AWS_REGION=$(jq -r '.deployment.region' .github/config.json)
+          APP_NAME=$(jq -r '.appName' .github/config.json)
+          PROJ_ENV=$(jq -r '.projEnv' .github/config.json)
+          SNYK_INTEGRATION_ID=$(jq -r '.snykScmIntegration' .github/config.json)
+          SNYK_ORG_ID=$(jq -r '.snykOrg' .github/config.json)
 
           echo "Deploying ${APP_NAME} to the ${PROJ_ENV} environment."
           echo "The target AWS region is: ${AWS_REGION}"
@@ -74,6 +73,8 @@ jobs:
           echo "proj_lifecycle=$LIFECYCLE" >> $GITHUB_ENV
           echo "proj_reponame=$REPO_NAME" >> $GITHUB_ENV
           echo "proj_repoorg=$REPO_ORG" >> $GITHUB_ENV
+          echo "snyk_scm_integration_id=${SNYK_INTEGRATION_ID}" >> $GITHUB_ENV
+          echo "snyk_org_id=${SNYK_ORG_ID}" >> $GITHUB_ENV
 
           # Also set as step outputs for job outputs
           echo "proj_criticality=$CRITICALITY" >> $GITHUB_OUTPUT
